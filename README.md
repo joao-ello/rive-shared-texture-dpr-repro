@@ -1,6 +1,8 @@
 # rive-flutter — shared-texture RiveWidget mispositioned under a MediaQuery devicePixelRatio override
 
-> Upstream issue: **rive-app/rive-flutter#640** — https://github.com/rive-app/rive-flutter/issues/640
+> Reported upstream:
+> - GitHub issue: **rive-app/rive-flutter#640** — https://github.com/rive-app/rive-flutter/issues/640
+> - Rive community forum: https://community.rive.app/c/bug-reports/shared-texture-rivewidget-mispositioned-when-an-ancestor-mediaquery-overrides-devicepixelratio
 
 A `RiveWidget(useSharedTexture: true)` rendered into a `RivePanel` is **mispositioned** when:
 
