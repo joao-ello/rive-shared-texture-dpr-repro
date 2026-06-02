@@ -171,9 +171,11 @@ packages:
   rive:
     dependency: "direct main"
     description:
-      path: "/Users/jello/rive-flutter-eng5361"
-      relative: false
-    source: path
+      path: "."
+      ref: a2cfa96fc87aa1957316e96d242b18a2e4436251
+      resolved-ref: a2cfa96fc87aa1957316e96d242b18a2e4436251
+      url: "https://github.com/joao-ello/rive-flutter.git"
+    source: git
     version: "0.14.7"
   rive_native:
     dependency: transitive

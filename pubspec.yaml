@@ -12,6 +12,15 @@ dependencies:
   rive: ^0.14.7
 
 
+dependency_overrides:
+  # Demonstrates the fix: rive forked at 0.14.7 with the dpr-source fix
+  # (View.of(context).devicePixelRatio). With this, all three panels render
+  # correctly (B is no longer mispositioned). See README + UPSTREAM_ISSUE.md.
+  rive:
+    git:
+      url: https://github.com/joao-ello/rive-flutter.git
+      ref: a2cfa96fc87aa1957316e96d242b18a2e4436251
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
