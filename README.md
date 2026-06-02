@@ -1,14 +1,27 @@
-# rive-flutter 0.14.7 — shared-texture web misposition repro
+# rive-flutter — shared-texture RiveWidget mispositioned under a MediaQuery devicePixelRatio override
 
-A `RiveWidget(useSharedTexture: true)` rendered into a `RivePanel` is **mispositioned on
-Flutter web** when both of these hold:
+A `RiveWidget(useSharedTexture: true)` rendered into a `RivePanel` is **mispositioned** when:
 
-1. the `RiveWidget` is **offset within its `RivePanel`** (it does not fill the panel), and
-2. an ancestor **`MediaQuery` overrides `devicePixelRatio`** to a value different from
-   `window.devicePixelRatio`.
+1. the `RiveWidget` is **offset within its `RivePanel`** (it doesn't fill the panel), and
+2. an ancestor **`MediaQuery` overrides `devicePixelRatio`** to a value different from the real
+   view dpr (`window.devicePixelRatio`).
 
-No ancestor transform is required. Correct on native (iOS/Android/desktop); was correct
-before 0.14.7.
+Reproduces on **web and native**, and on **stock rive `0.14.6` and `0.14.7`** — a long-standing
+issue in the shared-texture path, not specific to a recent release. No ancestor transform needed.
+
+Common in real apps: device-preview/inspector shells and "UI scaler" widgets routinely wrap the
+app in `MediaQuery(devicePixelRatio: realDpr / scale)` so logical layout renders at a virtual
+size. Any shared-texture `RiveWidget` under such a scaler mispositions.
+
+## Branches
+
+| Branch | rive | Result |
+| -- | -- | -- |
+| **`main`** | stock `^0.14.7` | reproduces the bug (panel **B** mispositioned) — `bug-screenshot.png` |
+| **`fix`** | [`joao-ello/rive-flutter@shared-texture-dpr-fix`](https://github.com/joao-ello/rive-flutter/compare/master...shared-texture-dpr-fix) (0.14.7 + the dpr-source fix) | all panels correct — `fix-screenshot.png` |
+
+The `fix` branch overrides `rive` to a fork of upstream `0.14.7` carrying only the suggested
+fix, so you can see the before/after with the same app code.
 
 ## Run
 
@@ -19,44 +32,52 @@ flutter run -d chrome      # or: flutter run -d web-server --web-port 8765
 
 Three panels (coyote should be centered in the blue square in all three):
 
-| Panel | offset painter | MediaQuery dpr | result |
+| Panel | offset painter | MediaQuery dpr | result (`main`) |
 | -- | -- | -- | -- |
 | **A** reference | yes | == window dpr | ✅ centered |
 | **B** minimal bug | yes | window dpr × 1.4 | ❌ **offset** |
 | **C** control | no (fills panel) | window dpr × 1.4 | ✅ centered |
 
-`B` vs `A` isolates the dpr mismatch; `B` vs `C` shows a non-zero panel-relative offset
-is required. The `×1.4` is a *relative* mismatch, so it reproduces at any
-`window.devicePixelRatio` (retina or not).
+`B` vs `A` isolates the dpr mismatch; `B` vs `C` shows a non-zero panel-relative offset is
+required. The `×1.4` is a *relative* mismatch, so it reproduces at any `window.devicePixelRatio`
+(retina or not).
 
 ## Cause
 
-Introduced in **0.14.7** (commit `b2ce130`, "shared texture fixes and improvements").
-`SharedTextureViewRenderObject.paintIntoSharedTexture` changed from absolute positioning
+`SharedTextureViewRenderObject.paintIntoSharedTexture` multiplies its panel-relative transform by
+`devicePixelRatio`, sourced from `MediaQuery.devicePixelRatioOf(context)`:
 
 ```dart
-final globalPosition = localToGlobal(Offset.zero) - panelRenderBox.localToGlobal(Offset.zero);
-renderer.transform(Mat2D.fromScaleAndTranslation(
-    scaleWidth, scaleHeight, globalPosition.dx * devicePixelRatio, globalPosition.dy * devicePixelRatio));
-```
-
-to a relative painter→panel transform:
-
-```dart
-final m = getTransformTo(panelRenderBox).storage;
-final dpr = devicePixelRatio; // == MediaQuery.devicePixelRatioOf(context)
+// SharedTextureView.build() passes MediaQuery.devicePixelRatioOf(context) as devicePixelRatio.
+final m = getTransformTo(panelRenderBox).storage;   // 0.14.7 (0.14.6: localToGlobal diff)
+final dpr = devicePixelRatio;                        // == MediaQuery.devicePixelRatioOf(context)
 renderer.transform(Mat2D.fromScaleAndTranslation(
     m[0].abs() * dpr, m[5].abs() * dpr, m[12] * dpr, m[13] * dpr));
 ```
 
-The panel-relative translation `m[12]/m[13]` is multiplied by `MediaQuery.devicePixelRatioOf(context)`,
-but the shared-texture canvas is sized by `window.devicePixelRatio` (in `rive_native`'s web
-backend). When those diverge and the offset is non-zero, the artwork is drawn at
-`offset × (mqDpr / windowDpr)` and lands off-position.
+But the shared-texture canvas is sized by the **real** view dpr (`window.devicePixelRatio`), not
+the overridable `MediaQuery` value. When an app overrides `MediaQuery.devicePixelRatio`, the two
+diverge and a non-zero panel-relative offset is drawn at `offset × (mqDpr / realDpr)` → off-position.
+The same `MediaQuery`-sourced dpr is used in `rive_panel.dart` (`RiveSurface.build`).
 
-Real-world trigger: any app that overrides `MediaQuery.devicePixelRatio` — device-preview
-shells, render-resolution scalers, etc. (e.g. a `FittedBox`-based device frame whose
-`compensatedDpr = actualDpr / fittedScale` diverges from the window dpr whenever the window
-is smaller than the framed content).
+The 0.14.7 "shared texture fixes" rewrite (absolute `localToGlobal` → relative `getTransformTo`,
+plus moving dpr into the scale term) changed how visibly this surfaces under ancestor transforms,
+but the `MediaQuery`-vs-real-dpr divergence is present in 0.14.6 as well.
 
-`rive: 0.14.7` · Flutter web.
+## Fix
+
+Source the dpr from the real view, not the overridable MediaQuery (see the `fix` branch /
+[fork diff](https://github.com/joao-ello/rive-flutter/compare/master...shared-texture-dpr-fix)):
+
+```dart
+// shared_texture_view.dart (SharedTextureView.build) and rive_panel.dart (RiveSurface.build):
+- MediaQuery.devicePixelRatioOf(context)
++ View.of(context).devicePixelRatio
+```
+
+`View.of(context).devicePixelRatio` is the real, non-overridable view dpr, which matches the canvas
+sizing, and keeps the relative `getTransformTo` transform intact. A `MediaQuery.devicePixelRatioOf`
+dependency is retained so a runtime dpr change (e.g. dragging the window to a different-DPI monitor)
+still triggers a rebuild.
+
+See [`UPSTREAM_ISSUE.md`](UPSTREAM_ISSUE.md) for the full writeup.
