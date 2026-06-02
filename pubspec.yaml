@@ -1,0 +1,22 @@
+name: rive_eng5361_repro
+description: "Repro: shared-texture RiveWidget mispositions on web under an ancestor transform (rive 0.14.7)."
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  rive: ^0.14.7
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/repro.riv
