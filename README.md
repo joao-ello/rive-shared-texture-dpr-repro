@@ -13,6 +13,8 @@ Common in real apps: device-preview/inspector shells and "UI scaler" widgets rou
 app in `MediaQuery(devicePixelRatio: realDpr / scale)` so logical layout renders at a virtual
 size. Any shared-texture `RiveWidget` under such a scaler mispositions.
 
+![On `main` (stock rive 0.14.7), panel **B** is mispositioned (the coyote sits below-right of its red box); **A** and **C** are correct.](bug-screenshot.png)
+
 ## Branches
 
 | Branch | rive | Result |
@@ -79,5 +81,7 @@ Source the dpr from the real view, not the overridable MediaQuery (see the `fix`
 sizing, and keeps the relative `getTransformTo` transform intact. A `MediaQuery.devicePixelRatioOf`
 dependency is retained so a runtime dpr change (e.g. dragging the window to a different-DPI monitor)
 still triggers a rebuild.
+
+![On the `fix` branch (rive 0.14.7 + the fix), all three panels render correctly — **B** is centered in its box.](fix-screenshot.png)
 
 See [`UPSTREAM_ISSUE.md`](UPSTREAM_ISSUE.md) for the full writeup.
