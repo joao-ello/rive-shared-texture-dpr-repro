@@ -1,3 +1,7 @@
+<!-- Issue title -->
+# Shared-texture RiveWidget mispositioned when an ancestor MediaQuery overrides devicePixelRatio
+
+<!-- Body (matches rive-app/rive-flutter runtime-issue-template.yml) -->
 # Title
 Shared-texture RiveWidget mispositioned when an ancestor MediaQuery overrides devicePixelRatio
 
